@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Flute keys" />
   <meta name="theme-color" content="#f4efe6" />
-  <title>Major keys · flute</title>
+  <title>Keys · flute</title>
   <style>
     :root {
       --paper: #f4efe6;
@@ -51,7 +51,7 @@
     header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
     .tabs, .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .tabs { margin: 16px 0 12px; }
-    button, .chip {
+    button, .chip, select {
       appearance: none;
       border: 1px solid var(--line);
       background: var(--raised);
@@ -62,6 +62,7 @@
       min-height: 44px;
       touch-action: manipulation;
     }
+    select { border-radius: 12px; padding: 8px 12px; }
     button.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; }
     button.active, .chip.active {
       background: var(--accent);
@@ -83,8 +84,6 @@
     table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
     th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
     th { color: var(--muted); font-weight: 550; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
     .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .answers button { border-radius: 12px; min-height: 56px; white-space: normal; text-align: center; }
     .banner {
@@ -103,22 +102,25 @@
     details { margin: 8px 0; }
     summary { cursor: pointer; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
     .spell { font-weight: 650; letter-spacing: 0.01em; }
+    #modeBar { margin: 8px 0 0; }
   </style>
 </head>
 <body>
   <header>
     <div>
-      <h1>Major keys · flute</h1>
+      <h1>Keys · flute</h1>
       <p class="lead" id="lead">Concert C flute · treble clef at pitch</p>
     </div>
     <button class="ghost" id="themeBtn" type="button">Dark stand</button>
   </header>
 
   <div class="stats">
-    <div class="stat"><b id="fluentN">0/15</b><span>keys fluent</span></div>
-    <div class="stat"><b>I IV V</b><span>major chords in each key</span></div>
+    <div class="stat"><b id="fluentN">0/15</b><span id="fluentLabel">keys fluent</span></div>
+    <div class="stat"><b id="romanStat">I IV V</b><span>diatonic 1, 4, and 5</span></div>
     <div class="stat"><b id="scoreN">—</b><span>quiz score</span></div>
   </div>
+
+  <div class="row" id="modeBar"></div>
 
   <nav class="tabs" id="tabs">
     <button type="button" data-tab="method" class="active">Method</button>
@@ -138,25 +140,46 @@ const SHARP_ORDER = ["F","C","G","D","A","E","B"];
 const FLAT_ORDER = ["B","E","A","D","G","C","F"];
 const LETTERS = "CDEFGAB";
 const STEPS = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const FIFTHS = ["Cb","Gb","Db","Ab","Eb","Bb","F","C","G","D","A","E","B","F#","C#"];
+
+const MODES = [
+  { id:"ionian",     name:"Ionian",     short:"Ionian",  offset:0,  degree:1, flavor:"natural 3 and 7 · major" },
+  { id:"dorian",     name:"Dorian",     short:"Dorian",  offset:-2, degree:2, flavor:"♭3, natural 6, ♭7" },
+  { id:"mixolydian", name:"Mixolydian", short:"Mixo",    offset:-1, degree:5, flavor:"natural 3, ♭7" },
+  { id:"aeolian",    name:"Aeolian",    short:"Aeolian", offset:-3, degree:6, flavor:"♭3, ♭6, ♭7 · natural minor" },
+  { id:"lydian",     name:"Lydian",     short:"Lydian",  offset:1,  degree:4, flavor:"♯4 · bright major" },
+  { id:"phrygian",   name:"Phrygian",   short:"Phrygian",offset:-4, degree:3, flavor:"♭2, ♭3, ♭6, ♭7" },
+  { id:"locrian",    name:"Locrian",    short:"Locrian", offset:-5, degree:7, flavor:"♭2, ♭5 · rare on flute" },
+];
+const MODE_STEPS = {
+  ionian:     [0,2,4,5,7,9,11],
+  dorian:     [0,2,3,5,7,9,10],
+  phrygian:   [0,1,3,5,7,8,10],
+  lydian:     [0,2,4,6,7,9,11],
+  mixolydian: [0,2,4,5,7,9,10],
+  aeolian:    [0,2,3,5,7,8,10],
+  locrian:    [0,1,3,5,6,8,10],
+};
 
 const KEYS = [
-  { id:"C",  name:"C major",      kind:"none",  count:0, phase:1, tonic:"C",  I:["C","E","G"],       IV:["F","A","C"],       V:["G","B","D"] },
-  { id:"G",  name:"G major",      kind:"sharp", count:1, phase:1, tonic:"G",  I:["G","B","D"],       IV:["C","E","G"],       V:["D","F#","A"] },
-  { id:"F",  name:"F major",      kind:"flat",  count:1, phase:1, tonic:"F",  I:["F","A","C"],       IV:["Bb","D","F"],      V:["C","E","G"] },
-  { id:"D",  name:"D major",      kind:"sharp", count:2, phase:2, tonic:"D",  I:["D","F#","A"],      IV:["G","B","D"],       V:["A","C#","E"] },
-  { id:"Bb", name:"B-flat major", kind:"flat",  count:2, phase:2, tonic:"Bb", I:["Bb","D","F"],      IV:["Eb","G","Bb"],     V:["F","A","C"] },
-  { id:"A",  name:"A major",      kind:"sharp", count:3, phase:3, tonic:"A",  I:["A","C#","E"],      IV:["D","F#","A"],      V:["E","G#","B"] },
-  { id:"Eb", name:"E-flat major", kind:"flat",  count:3, phase:3, tonic:"Eb", I:["Eb","G","Bb"],     IV:["Ab","C","Eb"],     V:["Bb","D","F"] },
-  { id:"E",  name:"E major",      kind:"sharp", count:4, phase:4, tonic:"E",  I:["E","G#","B"],      IV:["A","C#","E"],      V:["B","D#","F#"] },
-  { id:"Ab", name:"A-flat major", kind:"flat",  count:4, phase:4, tonic:"Ab", I:["Ab","C","Eb"],     IV:["Db","F","Ab"],     V:["Eb","G","Bb"] },
-  { id:"B",  name:"B major",      kind:"sharp", count:5, phase:5, tonic:"B",  I:["B","D#","F#"],     IV:["E","G#","B"],      V:["F#","A#","C#"] },
-  { id:"Db", name:"D-flat major", kind:"flat",  count:5, phase:5, tonic:"Db", I:["Db","F","Ab"],     IV:["Gb","Bb","Db"],    V:["Ab","C","Eb"] },
-  { id:"Fs", name:"F-sharp major",kind:"sharp", count:6, phase:6, tonic:"F#", I:["F#","A#","C#"],    IV:["B","D#","F#"],     V:["C#","E#","G#"] },
-  { id:"Gb", name:"G-flat major", kind:"flat",  count:6, phase:6, tonic:"Gb", I:["Gb","Bb","Db"],    IV:["Cb","Eb","Gb"],    V:["Db","F","Ab"] },
-  { id:"Cs", name:"C-sharp major",kind:"sharp", count:7, phase:6, tonic:"C#", I:["C#","E#","G#"],    IV:["F#","A#","C#"],    V:["G#","B#","D#"] },
-  { id:"Cb", name:"C-flat major", kind:"flat",  count:7, phase:6, tonic:"Cb", I:["Cb","Eb","Gb"],    IV:["Fb","Ab","Cb"],    V:["Gb","Bb","Db"] },
+  { id:"C",  name:"C major",      kind:"none",  count:0, phase:1, tonic:"C" },
+  { id:"G",  name:"G major",      kind:"sharp", count:1, phase:1, tonic:"G" },
+  { id:"F",  name:"F major",      kind:"flat",  count:1, phase:1, tonic:"F" },
+  { id:"D",  name:"D major",      kind:"sharp", count:2, phase:2, tonic:"D" },
+  { id:"Bb", name:"B-flat major", kind:"flat",  count:2, phase:2, tonic:"Bb" },
+  { id:"A",  name:"A major",      kind:"sharp", count:3, phase:3, tonic:"A" },
+  { id:"Eb", name:"E-flat major", kind:"flat",  count:3, phase:3, tonic:"Eb" },
+  { id:"E",  name:"E major",      kind:"sharp", count:4, phase:4, tonic:"E" },
+  { id:"Ab", name:"A-flat major", kind:"flat",  count:4, phase:4, tonic:"Ab" },
+  { id:"B",  name:"B major",      kind:"sharp", count:5, phase:5, tonic:"B" },
+  { id:"Db", name:"D-flat major", kind:"flat",  count:5, phase:5, tonic:"Db" },
+  { id:"Fs", name:"F-sharp major",kind:"sharp", count:6, phase:6, tonic:"F#" },
+  { id:"Gb", name:"G-flat major", kind:"flat",  count:6, phase:6, tonic:"Gb" },
+  { id:"Cs", name:"C-sharp major",kind:"sharp", count:7, phase:6, tonic:"C#" },
+  { id:"Cb", name:"C-flat major", kind:"flat",  count:7, phase:6, tonic:"Cb" },
 ];
 const KEY_BY_ID = Object.fromEntries(KEYS.map(k => [k.id, k]));
+const KEY_BY_TONIC = Object.fromEntries(KEYS.map(k => [k.tonic, k]));
 const PHASES = [
   { n:1, title:"Zero and one", keys:["C","G","F"], days:"2–3 days" },
   { n:2, title:"Two accidentals", keys:["D","Bb"], days:"2 days" },
@@ -174,14 +197,20 @@ const store = {
   set(key, value) { localStorage.setItem("flute-keys." + key, JSON.stringify(value)); }
 };
 
+function migrateMastered(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(x => String(x).includes(":") ? x : x + ":ionian");
+}
+
 const state = {
   tab: store.get("tab", "method"),
   keyId: store.get("keyId", "C"),
+  mode: store.get("mode", "ionian"),
   chord: store.get("chord", "I"),
   inv: store.get("inv", "root"),
   figure: store.get("figure", "closed"),
   bfoot: store.get("bfoot", false),
-  mastered: store.get("mastered", []),
+  mastered: migrateMastered(store.get("mastered", [])),
   drillKind: store.get("drillKind", "signature"),
   phaseCap: store.get("phaseCap", 1),
   q: null,
@@ -189,16 +218,26 @@ const state = {
   correct: store.get("correct", 0),
   attempts: store.get("attempts", 0),
 };
+if (!MODES.some(m => m.id === state.mode)) state.mode = "ionian";
 
 function save() {
-  ["tab","keyId","chord","inv","figure","bfoot","mastered","drillKind","phaseCap","correct","attempts"]
+  ["tab","keyId","mode","chord","inv","figure","bfoot","mastered","drillKind","phaseCap","correct","attempts"]
     .forEach(k => store.set(k, state[k]));
 }
 
 function parseNote(name) {
-  return { letter: name[0], acc: name.endsWith("#") ? "#" : name.endsWith("b") ? "b" : "", name };
+  const letter = name[0];
+  let acc = "";
+  if (name.indexOf("##") >= 0) acc = "##";
+  else if (name.indexOf("bb") >= 0) acc = "bb";
+  else if (name.endsWith("#")) acc = "#";
+  else if (name.length > 1 && name.endsWith("b")) acc = "b";
+  return { letter, acc, name };
 }
 function letterIndex(letter) { return LETTERS.indexOf(letter); }
+function pretty(n) {
+  return n.replace(/##/g, "𝄪").replace(/bb/g, "𝄫").replace(/#/g, "♯").replace(/b/g, "♭");
+}
 function invert(notes, inv) {
   if (inv === "first") return [notes[1], notes[2], notes[0]];
   if (inv === "second") return [notes[2], notes[0], notes[1]];
@@ -215,12 +254,12 @@ function stackNotes(names, startOct) {
   });
 }
 function midiOf(p) {
-  const a = p.acc === "#" ? 1 : p.acc === "b" ? -1 : 0;
+  const a = p.acc === "#" ? 1 : p.acc === "##" ? 2 : p.acc === "b" ? -1 : p.acc === "bb" ? -2 : 0;
   return (p.octave + 1) * 12 + STEPS[p.letter] + a;
 }
 function clampFlute(pitches) {
-  const min = state.bfoot ? 59 : 60; // B3 or C4
-  const max = 96; // C7
+  const min = state.bfoot ? 59 : 60;
+  const max = 96;
   if (!pitches.length) return pitches;
   let out = pitches.map(p => ({ ...p }));
   while (out.some(p => midiOf(p) < min)) {
@@ -231,35 +270,150 @@ function clampFlute(pitches) {
   }
   return out;
 }
-function figureNotes(key, fn, inv, figure) {
-  const triad = key[fn];
+
+function tonicPc(name) {
+  const p = parseNote(name);
+  const a = p.acc === "#" ? 1 : p.acc === "##" ? 2 : p.acc === "b" ? -1 : p.acc === "bb" ? -2 : 0;
+  return (STEPS[p.letter] + a + 12) % 12;
+}
+function spellOnLetter(letter, targetPc) {
+  const natural = STEPS[letter];
+  let delta = targetPc - natural;
+  while (delta > 2) delta -= 12;
+  while (delta < -2) delta += 12;
+  if (delta === 0) return letter;
+  if (delta === 1) return letter + "#";
+  if (delta === 2) return letter + "##";
+  if (delta === -1) return letter + "b";
+  if (delta === -2) return letter + "bb";
+  return letter;
+}
+function scaleOf(tonic, modeId) {
+  const steps = MODE_STEPS[modeId];
+  const start = parseNote(tonic).letter;
+  const i0 = LETTERS.indexOf(start);
+  const tpc = tonicPc(tonic);
+  return steps.map((st, i) => spellOnLetter(LETTERS[(i0 + i) % 7], (tpc + st) % 12));
+}
+function triadQuality(triad) {
+  const s = stackNotes(triad, 4);
+  const i3 = midiOf(s[1]) - midiOf(s[0]);
+  const i5 = midiOf(s[2]) - midiOf(s[0]);
+  if (i3 === 4 && i5 === 7) return "M";
+  if (i3 === 3 && i5 === 7) return "m";
+  if (i3 === 3 && i5 === 6) return "d";
+  if (i3 === 4 && i5 === 8) return "A";
+  return "?";
+}
+function romanOf(deg, q) {
+  const upper = { I:"I", IV:"IV", V:"V" }[deg];
+  if (q === "m") return upper.toLowerCase();
+  if (q === "d") return upper.toLowerCase() + "°";
+  if (q === "A") return upper + "+";
+  return upper;
+}
+function currentMode() {
+  return MODES.find(m => m.id === state.mode) || MODES[0];
+}
+function parentMajor(tonic, offset) {
+  const idx = FIFTHS.indexOf(tonic);
+  if (idx < 0) return null;
+  const p = idx + offset;
+  if (p < 0 || p >= FIFTHS.length) return null;
+  return KEY_BY_TONIC[FIFTHS[p]] || null;
+}
+function signatureFromScale(scale) {
+  const sharpNotes = [];
+  const flatNotes = [];
+  let doubles = false;
+  scale.forEach(n => {
+    if (n.indexOf("##") >= 0 || n.indexOf("bb") >= 0) doubles = true;
+    else if (n.endsWith("#") && sharpNotes.indexOf(n[0]) < 0) sharpNotes.push(n[0]);
+    else if (n.length > 1 && n.endsWith("b") && flatNotes.indexOf(n[0]) < 0) flatNotes.push(n[0]);
+  });
+  if (doubles) return { kind:"none", count:0, doubles:true };
+  if (sharpNotes.length && !flatNotes.length) {
+    return { kind:"sharp", count: SHARP_ORDER.filter(l => sharpNotes.indexOf(l) >= 0).length };
+  }
+  if (flatNotes.length && !sharpNotes.length) {
+    return { kind:"flat", count: FLAT_ORDER.filter(l => flatNotes.indexOf(l) >= 0).length };
+  }
+  return { kind:"none", count:0 };
+}
+function viewOf(key) {
+  const mode = currentMode();
+  const scale = scaleOf(key.tonic, mode.id);
+  const I = [scale[0], scale[2], scale[4]];
+  const IV = [scale[3], scale[5], scale[0]];
+  const V = [scale[4], scale[6], scale[1]];
+  const qI = triadQuality(I), qIV = triadQuality(IV), qV = triadQuality(V);
+  const parent = parentMajor(key.tonic, mode.offset);
+  const sig = parent || signatureFromScale(scale);
+  const display = mode.id === "ionian" ? key.name : pretty(key.tonic) + " " + mode.name;
+  return {
+    id: key.id,
+    tonic: key.tonic,
+    name: display,
+    kind: sig.kind,
+    count: sig.count,
+    doubles: !!sig.doubles,
+    phase: key.phase,
+    scale,
+    I, IV, V,
+    romans: [romanOf("I", qI), romanOf("IV", qIV), romanOf("V", qV)],
+    parent,
+    mode,
+    flavor: mode.flavor,
+  };
+}
+function activeView() { return viewOf(KEY_BY_ID[state.keyId] || KEYS[0]); }
+function fluentId(keyId, modeId) { return keyId + ":" + (modeId || state.mode); }
+
+function figureNotes(vk, fn, inv, figure) {
+  if (figure === "scale") {
+    return clampFlute(stackNotes(vk.scale.concat(vk.scale[0]), 4));
+  }
+  const triad = vk[fn];
   if (figure === "closed") return clampFlute(stackNotes(invert(triad, inv), 4));
   const names = figure === "octave"
     ? [triad[0], triad[1], triad[2], triad[0]]
     : [triad[0], triad[1], triad[2], triad[0], triad[1], triad[2], triad[0]];
   return clampFlute(stackNotes(names, 4));
 }
-function accLabel(key) {
-  if (key.kind === "none") return "open key";
-  return key.count + (key.kind === "sharp" ? "♯" : "♭");
+function accLabel(sig) {
+  if (sig.doubles) return "double accidentals";
+  if (sig.kind === "none") return "open key";
+  return sig.count + (sig.kind === "sharp" ? "♯" : "♭");
 }
-function accLetters(key) {
-  if (key.kind === "sharp") return SHARP_ORDER.slice(0, key.count).map(l => l + "♯");
-  if (key.kind === "flat") return FLAT_ORDER.slice(0, key.count).map(l => l + "♭");
+function accLetters(sig) {
+  if (sig.kind === "sharp") return SHARP_ORDER.slice(0, sig.count).map(l => l + "♯");
+  if (sig.kind === "flat") return FLAT_ORDER.slice(0, sig.count).map(l => l + "♭");
   return [];
 }
-function lastHint(key) {
-  if (key.kind === "none") return "No accidentals. The open key is C major.";
-  if (key.kind === "sharp") {
-    const last = SHARP_ORDER[key.count - 1];
-    return "Last sharp is " + last + "♯ (ti). A half step up is the tonic: " + key.tonic + ".";
+function lastHint(vk) {
+  const mode = vk.mode;
+  if (mode.id === "ionian") {
+    if (vk.kind === "none") return "No accidentals. The open key is C major (Ionian).";
+    if (vk.kind === "sharp") {
+      const last = SHARP_ORDER[vk.count - 1];
+      return "Last sharp is " + last + "♯ (ti). A half step up is the tonic: " + vk.tonic + ".";
+    }
+    if (vk.count === 1) return "One flat is always F major.";
+    const last = FLAT_ORDER[vk.count - 1];
+    const second = FLAT_ORDER[vk.count - 2];
+    return "Last flat is " + last + "♭ (fa). Tonic is the second-to-last flat: " + second + "♭ = " + vk.tonic + ".";
   }
-  if (key.count === 1) return "One flat is always F major.";
-  const last = FLAT_ORDER[key.count - 1];
-  const second = FLAT_ORDER[key.count - 2];
-  return "Last flat is " + last + "♭ (fa). Tonic is the second-to-last flat: " + second + "♭ = " + key.tonic + ".";
+  if (vk.parent) {
+    return pretty(vk.tonic) + " " + mode.name + " uses the " + vk.parent.name + " signature. "
+      + pretty(vk.tonic) + " is degree " + mode.degree + " of " + pretty(vk.parent.tonic) + " major. "
+      + mode.flavor + ".";
+  }
+  if (vk.doubles) {
+    return pretty(vk.tonic) + " " + mode.name + " needs double accidentals. Prefer an enharmonic tonic. " + mode.flavor + ".";
+  }
+  return mode.flavor + ".";
 }
-function joinNotes(notes) { return notes.join(" – "); }
+function joinNotes(notes) { return notes.map(pretty).join(" – "); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function shuffle(arr) {
   const a = arr.slice();
@@ -275,33 +429,42 @@ function uniqueChoices(correct, pool, n=4) {
 function poolKeys() {
   return KEYS.filter(k => state.phaseCap === 0 || k.phase <= state.phaseCap);
 }
+function chordLine(vk) {
+  return vk.romans[0] + " " + pretty(vk.I[0]) + " · " + vk.romans[1] + " " + pretty(vk.IV[0]) + " · " + vk.romans[2] + " " + pretty(vk.V[0]);
+}
 function makeDrill(kind) {
   const pool = poolKeys();
   const key = pick(pool);
+  const vk = viewOf(key);
+  const mode = currentMode();
   if (kind === "signature") {
-    return { kind, prompt: "Which major key is this?", keyId: key.id, answer: key.name,
-      choices: uniqueChoices(key.name, pool.map(k => k.name)), detail: lastHint(key) };
+    return { kind, prompt: "Which " + mode.name + " tonic has this signature?", keyId: key.id, answer: vk.name,
+      choices: uniqueChoices(vk.name, pool.map(k => viewOf(k).name)), detail: lastHint(vk) };
   }
   if (kind === "count") {
-    const answer = accLabel(key);
-    return { kind, prompt: key.name + " has how many accidentals?", keyId: key.id, answer,
-      choices: uniqueChoices(answer, pool.map(accLabel)), detail: accLetters(key).join(" ") || "none" };
+    const answer = accLabel(vk);
+    return { kind, prompt: vk.name + " has how many accidentals?", keyId: key.id, answer,
+      choices: uniqueChoices(answer, pool.map(k => accLabel(viewOf(k)))), detail: accLetters(vk).join(" ") || "none" };
   }
   if (kind === "chords") {
-    const answer = "I " + key.I[0] + " · IV " + key.IV[0] + " · V " + key.V[0];
-    return { kind, prompt: "The three major chords of " + key.name + "?", keyId: key.id, answer,
-      choices: uniqueChoices(answer, pool.map(k => "I " + k.I[0] + " · IV " + k.IV[0] + " · V " + k.V[0])),
-      detail: "I " + joinNotes(key.I) + " · IV " + joinNotes(key.IV) + " · V " + joinNotes(key.V) };
+    const answer = chordLine(vk);
+    return { kind, prompt: "The 1, 4, and 5 chords of " + vk.name + "?", keyId: key.id, answer,
+      choices: uniqueChoices(answer, pool.map(k => chordLine(viewOf(k)))),
+      detail: "I " + joinNotes(vk.I) + " · IV " + joinNotes(vk.IV) + " · V " + joinNotes(vk.V) };
   }
   const fn = pick(["I","IV","V"]);
   const inv = pick(["root","first","second"]);
-  const notes = invert(key[fn], inv);
+  const notes = invert(vk[fn], inv);
   const invLabel = inv === "root" ? "root position" : inv === "first" ? "1st inversion" : "2nd inversion";
+  const roman = { I: vk.romans[0], IV: vk.romans[1], V: vk.romans[2] }[fn];
   const answer = joinNotes(notes);
-  const decoys = pool.flatMap(k => ["I","IV","V"].flatMap(f =>
-    ["root","first","second"].map(i => joinNotes(invert(k[f], i)))));
-  return { kind, prompt: "Spell " + invLabel + " of " + fn + " in " + key.name + ".", keyId: key.id, answer,
-    choices: uniqueChoices(answer, decoys), detail: fn + " = " + joinNotes(key[fn]) };
+  const decoys = pool.flatMap(k => {
+    const w = viewOf(k);
+    return ["I","IV","V"].flatMap(f =>
+      ["root","first","second"].map(i => joinNotes(invert(w[f], i))));
+  });
+  return { kind, prompt: "Spell " + invLabel + " of " + roman + " in " + vk.name + ".", keyId: key.id, answer,
+    choices: uniqueChoices(answer, decoys), detail: roman + " = " + joinNotes(vk[fn]) };
 }
 
 const STAFF_TOP = 28, SP = 10;
@@ -332,13 +495,13 @@ function ledgerYs(y) {
   if (y > bot) for (let ly = bot + SP; ly <= y + 0.1; ly += SP) out.push(ly);
   return out;
 }
-function staffSVG(key, notes, width) {
+function staffSVG(vk, notes, width) {
   const ink = "currentColor";
   const accStart = 42, accGap = 11;
-  const noteStart = accStart + key.count * accGap + (key.count === 0 ? 8 : 16);
+  const noteStart = accStart + vk.count * accGap + (vk.count === 0 ? 8 : 16);
   let acc = "";
-  if (key.kind === "sharp") acc = SHARP_ORDER.slice(0, key.count).map((l,i) => sharpSVG(accStart + i*accGap, SHARP_Y[l])).join("");
-  if (key.kind === "flat") acc = FLAT_ORDER.slice(0, key.count).map((l,i) => flatSVG(accStart + i*accGap, FLAT_Y[l])).join("");
+  if (vk.kind === "sharp") acc = SHARP_ORDER.slice(0, vk.count).map((l,i) => sharpSVG(accStart + i*accGap, SHARP_Y[l])).join("");
+  if (vk.kind === "flat") acc = FLAT_ORDER.slice(0, vk.count).map((l,i) => flatSVG(accStart + i*accGap, FLAT_Y[l])).join("");
   const lines = [0,1,2,3,4].map(i =>
     `<line x1="4" x2="${width-4}" y1="${STAFF_TOP+i*SP}" y2="${STAFF_TOP+i*SP}" stroke="${ink}" stroke-width="1"/>`
   ).join("");
@@ -356,10 +519,10 @@ function staffSVG(key, notes, width) {
       ${ledgers}
       <ellipse cx="${x}" cy="${y}" rx="7.2" ry="5.1" transform="rotate(-20 ${x} ${y})" fill="${ink}"/>
       <line x1="${sx}" y1="${y}" x2="${sx}" y2="${sy2}" stroke="${ink}" stroke-width="1.15"/>
-      <text x="${x}" y="108" text-anchor="middle" fill="currentColor" opacity="0.55" font-size="10">${n.name}</text>
+      <text x="${x}" y="108" text-anchor="middle" fill="currentColor" opacity="0.55" font-size="10">${pretty(n.name)}</text>
     </g>`;
   }).join("");
-  return `<svg width="100%" viewBox="0 0 ${width} 120" role="img" aria-label="${key.name} treble clef">${lines}${clef}${acc}${noteMarkup}</svg>`;
+  return `<svg width="100%" viewBox="0 0 ${width} 120" role="img" aria-label="${vk.name} treble clef">${lines}${clef}${acc}${noteMarkup}</svg>`;
 }
 
 let audioCtx = null;
@@ -394,11 +557,11 @@ function stopDrone() {
   droneNodes.forEach(n => { try { n.stop(); } catch {} });
   droneNodes = [];
 }
-function toggleDrone(key) {
+function toggleDrone(vk) {
   if (droneNodes.length) { stopDrone(); render(); return; }
   const c = ctx();
-  const tonic = clampFlute(stackNotes([key.tonic], 4))[0];
-  const fifth = clampFlute(stackNotes([key.V[0]], 4))[0];
+  const tonic = clampFlute(stackNotes([vk.tonic], 4))[0];
+  const fifth = clampFlute(stackNotes([vk.V[0]], 4))[0];
   [tonic, fifth].forEach((p, i) => {
     const osc = c.createOscillator();
     const g = c.createGain();
@@ -420,95 +583,101 @@ function chip(label, active, attrs) {
 }
 
 function methodView() {
+  const mode = currentMode();
   return `
-    <p>Flute is in C: the key on the page is the sounding key. Learn the two signature rules, then bind each key to its three major chords — I, IV, and V — as slurred arpeggios you can actually play.</p>
+    <p>Flute is in C: the key on the page is the sounding key. Pick a <b>tonic</b> and a <b>mode</b>. The signature is the parent major’s picture; the mode says which note is home.</p>
     <div class="banner">
-      <b>Sharps</b> accumulate F C G D A E B. Last sharp is <b>ti</b>; a half step up is the tonic.<br/>
-      <b>Flats</b> accumulate B E A D G C F. Last flat is <b>fa</b>; tonic is the second-to-last flat. One flat = F major.
+      <b>Sharps</b> accumulate F C G D A E B. Last sharp is <b>ti</b> of the parent major.<br/>
+      <b>Flats</b> accumulate B E A D G C F. Last flat is <b>fa</b> of the parent major. One flat = F major / D Dorian / G Mixolydian / A Aeolian, depending on the mode you chose.
     </div>
+    <p>Right now the mode is <b>${esc(mode.name)}</b> — ${esc(mode.flavor)}. Ionian is major. Dorian, Mixolydian, and Aeolian are the ones her teacher and choro use most. Lydian, Phrygian, and Locrian complete the set of seven.</p>
     <h2>On the flute</h2>
     <ul>
       <li>Tongue the first note, slur the rest of the figure (Taffanel-style). Then reverse: slur up, tongue down, or as your teacher marks.</li>
-      <li>Closed shapes (root, 1st, 2nd inversion) are starting on 1, 3, or 5 of the chord — useful for excerpts that enter on a chord tone.</li>
-      <li>Then one octave (1–3–5–8) and two octaves, up and down. Breathe at the top of the two-octave figure if you need to.</li>
-      <li>Use the tonic drone in Studio and play the arpeggio against it. That is the intonation work.</li>
-      <li>C-foot flute stops at low C. Turn on B foot in Studio if you have a B joint; otherwise B major starts on B in the staff, not the low B.</li>
+      <li>Play the mode scale against the tonic drone, then the 1, 4, and 5 arpeggios of that mode (quality follows the mode: i / IV / v in Dorian, I / IV / v in Mixolydian, and so on).</li>
+      <li>Closed shapes (root, 1st, 2nd inversion) are starting on 1, 3, or 5 of the chord.</li>
+      <li>C-foot flute stops at low C. Turn on B foot in Studio if you have a B joint.</li>
     </ul>
     <h2>Daily loop (12 minutes)</h2>
     <table>
       <thead><tr><th>Min</th><th>Work</th></tr></thead>
       <tbody>
-        <tr><td>0–2</td><td>Flash current-phase signatures. Name the key without counting from C.</td></tr>
-        <tr><td>2–5</td><td>Say I–IV–V, then spell root + both inversions of each.</td></tr>
-        <tr><td>5–11</td><td>Play those arpeggios, slurred, with the drone. Listen, don’t just finger.</td></tr>
-        <tr><td>11–12</td><td>Write one signature from memory in the standard treble slots.</td></tr>
+        <tr><td>0–2</td><td>Flash current-phase signatures. Name them in the selected mode (not only as major).</td></tr>
+        <tr><td>2–5</td><td>Say 1–4–5 with the right quality, then spell root + both inversions of each.</td></tr>
+        <tr><td>5–11</td><td>Play the scale and those arpeggios, slurred, with the drone.</td></tr>
+        <tr><td>11–12</td><td>Write one signature from memory and name its tonic in this mode.</td></tr>
       </tbody>
     </table>
     <h2>Sequence</h2>
     <table>
-      <thead><tr><th>Phase</th><th>Keys</th><th></th></tr></thead>
+      <thead><tr><th>Phase</th><th>Tonics</th><th></th></tr></thead>
       <tbody>
         ${PHASES.map(p => `<tr>
           <td>${p.n}. ${esc(p.title)}</td>
-          <td>${p.keys.map(id => KEY_BY_ID[id].tonic).join(" · ")}</td>
+          <td>${p.keys.map(id => pretty(KEY_BY_ID[id].tonic)).join(" · ")}</td>
           <td><button type="button" data-open-phase="${p.n}">Open</button></td>
         </tr>`).join("")}
       </tbody>
     </table>
-    <p class="hint">Pair each sharp key with the flat key of the same accidental count. Do not start at C♯ / C♭. Do not name “two sharps” without also naming the key and I–IV–V in the same breath.</p>
+    <p class="hint">Walk the same tonic sequence in Ionian first, then flip the mode without changing the home note. Same fingers, different home — that is the teacher’s point.</p>
   `;
 }
 
 function studioView() {
-  const key = KEY_BY_ID[state.keyId];
-  const notes = figureNotes(key, state.chord, state.inv, state.figure);
+  const vk = activeView();
+  const notes = figureNotes(vk, state.chord, state.inv, state.figure);
   const invLabel = state.inv === "root" ? "root position" : state.inv === "first" ? "1st inversion" : "2nd inversion";
-  const figLabel = state.figure === "closed" ? invLabel : state.figure === "octave" ? "one octave" : "two octaves";
-  const width = state.figure === "twoOct" ? 560 : 420;
-  const fluent = state.mastered.includes(key.id);
+  const figLabel = state.figure === "scale" ? "mode scale"
+    : state.figure === "closed" ? invLabel
+    : state.figure === "octave" ? "one octave" : "two octaves";
+  const width = state.figure === "twoOct" || state.figure === "scale" ? 560 : 420;
+  const fluent = state.mastered.includes(fluentId(vk.id));
+  const spell = state.figure === "scale"
+    ? ("Scale: " + vk.scale.map(pretty).join(" – ") + " – " + pretty(vk.scale[0]))
+    : (vk.romans[{I:0,IV:1,V:2}[state.chord]] + " " + pretty(vk[state.chord][0]) + " · " + figLabel + ": " + notes.map(n => pretty(n.name)).join(" – "));
   return `
     <div class="row">
-      ${PHASES.map(p => chip("P"+p.n, key.phase===p.n, `data-phase="${p.n}"`)).join("")}
+      ${PHASES.map(p => chip("P"+p.n, vk.phase===p.n, `data-phase="${p.n}"`)).join("")}
     </div>
     <div class="row" style="margin-top:8px">
-      ${KEYS.map(k => chip(k.tonic, k.id===key.id, `data-key="${k.id}"`)).join("")}
+      ${KEYS.map(k => chip(pretty(k.tonic), k.id===vk.id, `data-key="${k.id}"`)).join("")}
     </div>
-    <h2>${esc(key.name)}</h2>
-    <p class="hint">${esc(accLabel(key))} · ${esc(lastHint(key))}</p>
-    <div class="staff-wrap">${staffSVG(key, notes, width)}</div>
-    <p class="spell">${esc(state.chord)} ${esc(key[state.chord][0])} · ${esc(figLabel)}: ${esc(notes.map(n => n.name).join(" – "))}</p>
+    <h2>${esc(vk.name)}</h2>
+    <p class="hint">${esc(accLabel(vk))} · ${esc(lastHint(vk))}</p>
+    <div class="staff-wrap">${staffSVG(vk, notes, width)}</div>
+    <p class="spell">${esc(spell)}</p>
     <div class="row">
       <button type="button" class="primary" data-play>Play slurred</button>
       <button type="button" data-drone>${droneNodes.length ? "Stop drone" : "Tonic drone"}</button>
       <button type="button" class="${state.bfoot ? "active" : ""}" data-bfoot>${state.bfoot ? "B foot on" : "C foot"}</button>
       <button type="button" class="${fluent ? "active" : ""}" data-fluent>${fluent ? "Fluent" : "Mark fluent"}</button>
     </div>
-    <h3>I, IV, V</h3>
+    <h3>1, 4, and 5 in this mode</h3>
     <table>
       <thead><tr><th></th><th>Chord</th><th>Spell</th></tr></thead>
       <tbody>
-        <tr><td>I</td><td>${esc(key.I[0])}</td><td>${esc(joinNotes(key.I))}</td></tr>
-        <tr><td>IV</td><td>${esc(key.IV[0])}</td><td>${esc(joinNotes(key.IV))}</td></tr>
-        <tr><td>V</td><td>${esc(key.V[0])}</td><td>${esc(joinNotes(key.V))}</td></tr>
+        <tr><td>${esc(vk.romans[0])}</td><td>${esc(pretty(vk.I[0]))}</td><td>${esc(joinNotes(vk.I))}</td></tr>
+        <tr><td>${esc(vk.romans[1])}</td><td>${esc(pretty(vk.IV[0]))}</td><td>${esc(joinNotes(vk.IV))}</td></tr>
+        <tr><td>${esc(vk.romans[2])}</td><td>${esc(pretty(vk.V[0]))}</td><td>${esc(joinNotes(vk.V))}</td></tr>
       </tbody>
     </table>
     <div class="row" style="margin-top:12px">
-      ${["I","IV","V"].map(fn => chip(fn + " " + key[fn][0], state.chord===fn, `data-chord="${fn}"`)).join("")}
+      ${["I","IV","V"].map((fn, i) => chip(vk.romans[i] + " " + pretty(vk[fn][0]), state.chord===fn, `data-chord="${fn}"`)).join("")}
     </div>
     <div class="row" style="margin-top:8px">
       ${[["root","Root"],["first","1st inv"],["second","2nd inv"]].map(([id,l]) => chip(l, state.inv===id, `data-inv="${id}"`)).join("")}
     </div>
     <div class="row" style="margin-top:8px">
-      ${[["closed","Closed"],["octave","One octave"],["twoOct","Two octaves"]].map(([id,l]) => chip(l, state.figure===id, `data-figure="${id}"`)).join("")}
+      ${[["closed","Closed"],["octave","One octave"],["twoOct","Two octaves"],["scale","Scale"]].map(([id,l]) => chip(l, state.figure===id, `data-figure="${id}"`)).join("")}
     </div>
-    <p class="hint">Speak the three closed spellings, then play them. Inversions on flute mean you start on the 3rd or 5th, not a piano voicing. Notes stay in a C-flute range (or B foot if you switched it on).</p>
+    <p class="hint">Scale first, against the drone, then the three chords. Inversions on flute mean you start on the 3rd or 5th. Notes stay in a C-flute range (or B foot if you switched it on).</p>
   `;
 }
 
 function drillView() {
   if (!state.q) state.q = makeDrill(state.drillKind);
   const q = state.q;
-  const key = KEY_BY_ID[q.keyId];
+  const vk = viewOf(KEY_BY_ID[q.keyId] || KEYS[0]);
   const showStaff = q.kind === "signature";
   const feedback = state.picked == null ? "" :
     `<div class="banner ${state.picked === q.answer ? "ok" : "bad"}">
@@ -517,9 +686,9 @@ function drillView() {
   return `
     <div class="row">
       <select id="kindSel">
-        <option value="signature"${q.kind==="signature"?" selected":""}>Name the key</option>
+        <option value="signature"${q.kind==="signature"?" selected":""}>Name the tonic</option>
         <option value="count"${q.kind==="count"?" selected":""}>Accidental count</option>
-        <option value="chords"${q.kind==="chords"?" selected":""}>I–IV–V names</option>
+        <option value="chords"${q.kind==="chords"?" selected":""}>1–4–5 names</option>
         <option value="spell"${q.kind==="spell"?" selected":""}>Spell an inversion</option>
       </select>
       <select id="phaseSel">
@@ -528,7 +697,7 @@ function drillView() {
       </select>
     </div>
     <h2>${esc(q.prompt)}</h2>
-    ${showStaff ? `<div class="staff-wrap">${staffSVG(key, [], 380)}</div>` : ""}
+    ${showStaff ? `<div class="staff-wrap">${staffSVG(vk, [], 380)}</div>` : ""}
     <div class="answers">
       ${q.choices.map(c => {
         const shown = state.picked != null;
@@ -546,13 +715,25 @@ function drillView() {
   `;
 }
 
+function renderModeBar() {
+  const mode = currentMode();
+  document.getElementById("modeBar").innerHTML =
+    MODES.map(m => chip(m.short, m.id === mode.id, `data-mode="${m.id}"`)).join("");
+}
+
 function render() {
   save();
-  document.getElementById("fluentN").textContent = state.mastered.length + "/15";
+  const vk = activeView();
+  const fluentN = state.mastered.filter(id => id.endsWith(":" + state.mode)).length;
+  document.getElementById("fluentN").textContent = fluentN + "/15";
+  document.getElementById("fluentLabel").textContent = currentMode().name + " fluent";
+  document.getElementById("romanStat").textContent = vk.romans.join(" ");
+  document.getElementById("lead").textContent = "Concert C flute · " + currentMode().name + " · " + currentMode().flavor;
   document.getElementById("scoreN").textContent = state.attempts ? (state.correct + "/" + state.attempts) : "—";
   document.querySelectorAll("#tabs button").forEach(b => {
     b.classList.toggle("active", b.dataset.tab === state.tab);
   });
+  renderModeBar();
   const app = document.getElementById("app");
   app.innerHTML = state.tab === "method" ? methodView() : state.tab === "studio" ? studioView() : drillView();
 }
@@ -562,6 +743,17 @@ document.getElementById("tabs").addEventListener("click", e => {
   if (!b) return;
   state.tab = b.dataset.tab;
   if (state.tab === "drill" && !state.q) state.q = makeDrill(state.drillKind);
+  render();
+});
+
+document.getElementById("modeBar").addEventListener("click", e => {
+  const t = e.target.closest("button[data-mode]");
+  if (!t) return;
+  if (t.dataset.mode === state.mode) return;
+  state.mode = t.dataset.mode;
+  stopDrone();
+  state.picked = null;
+  state.q = makeDrill(state.drillKind);
   render();
 });
 
@@ -580,22 +772,21 @@ document.getElementById("app").addEventListener("click", e => {
     state.keyId = p.keys[0];
     render(); return;
   }
-  if (t.dataset.key) { state.keyId = t.dataset.key; render(); return; }
+  if (t.dataset.key) { state.keyId = t.dataset.key; stopDrone(); render(); return; }
   if (t.dataset.chord) { state.chord = t.dataset.chord; render(); return; }
   if (t.dataset.inv) { state.inv = t.dataset.inv; render(); return; }
   if (t.dataset.figure) { state.figure = t.dataset.figure; render(); return; }
   if (t.hasAttribute("data-bfoot")) { state.bfoot = !state.bfoot; render(); return; }
   if (t.hasAttribute("data-fluent")) {
-    const id = state.keyId;
+    const id = fluentId(state.keyId);
     state.mastered = state.mastered.includes(id) ? state.mastered.filter(x => x !== id) : state.mastered.concat(id);
     render(); return;
   }
   if (t.hasAttribute("data-play")) {
-    const key = KEY_BY_ID[state.keyId];
-    playPitches(figureNotes(key, state.chord, state.inv, state.figure), true);
+    playPitches(figureNotes(activeView(), state.chord, state.inv, state.figure), true);
     return;
   }
-  if (t.hasAttribute("data-drone")) { toggleDrone(KEY_BY_ID[state.keyId]); return; }
+  if (t.hasAttribute("data-drone")) { toggleDrone(activeView()); return; }
   if (t.dataset.choice != null) {
     if (state.picked) return;
     state.picked = t.dataset.choice;
