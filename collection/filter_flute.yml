@@ -1,0 +1,60 @@
+# Local-only filter rules. Edit and re-run filter_collection.py — no network.
+# Format: simple YAML (mappings + string lists + booleans).
+# Use single backslashes in patterns (\b = word boundary).
+
+featured:
+  title_patterns:
+    - '(?i)\bflute concerto\b'
+    - '(?i)\bconcerto for flute\b'
+    - '(?i)\bflûte\b'
+    - '(?i)\bflauta\b'
+    - '(?i)\bfor flute\b'
+    - '(?i)\bflute sonata\b'
+    - '(?i)\bsonata for flute\b'
+    - '(?i)\bflute quartet\b'
+    - '(?i)\bflute quintet\b'
+    - '(?i)\bflute trio\b'
+    - '(?i)\bflute &\b'
+    - '(?i)\bflute and\b'
+    - '(?i)\b&,? flute\b'
+    - '(?i)\band flute\b'
+    - '(?i)\bworks for flute\b'
+    - '(?i)\bmusic for flute\b'
+    - '(?i)\bflute music\b'
+    - '(?i)\bthe flute\b'
+    - '(?i)\bflute:\b'
+    - '(?i)\b, flute\b'
+    - '(?i)\bflute\b'
+  artist_patterns:
+    - '(?i)\bflute\b'
+    - '(?i)\bflûte\b'
+    - '(?i)\bflautista\b'
+  instrument_patterns:
+    - '(?i)^flute$'
+    - '(?i)\bflute\b'
+    - '(?i)\bflûte\b'
+    - '(?i)\btransverse flute\b'
+    - '(?i)\balto flute\b'
+    - '(?i)\bbass flute\b'
+    - '(?i)\bpiccolo\b'
+  require_instrument_when_present: false
+
+candidates:
+  keywords:
+    - '(?i)\bflute\b'
+    - '(?i)\bflûte\b'
+    - '(?i)\bflauta\b'
+    - '(?i)\bflautista\b'
+    - '(?i)\bflutist\b'
+    - '(?i)\bflautist\b'
+    - '(?i)\bpiccolo\b'
+
+exclude:
+  featured_patterns:
+    - '(?i)\bpan.?flute\b'
+    - '(?i)\bnative american flute\b'
+    - '(?i)\btin whistle\b'
+    - '(?i)\brecorder\b'
+    - '(?i)\bshakuhachi\b'
+  candidate_patterns:
+    - '(?i)\bpan.?flute\b'

@@ -1,1 +1,6 @@
 .DS_Store
+collection/.discogs_token
+collection/.env
+collection/**/*.log
+*.pyc
+__pycache__/

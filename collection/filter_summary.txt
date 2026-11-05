@@ -1,0 +1,5 @@
+cache_records=762
+status_counts={'ok': 692, 'not_found': 66, 'non_upc': 4}
+flute_featured=29
+flute_candidates=5
+wrote flute_featured.csv, flute_featured.md, flute_candidates.csv

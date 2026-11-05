@@ -1,0 +1,9 @@
+{
+  "source_file": "/Users/johnbradley/Documents/JWG_LPs.numbers",
+  "sheet": "Sheet1",
+  "table": "Table 1",
+  "rows_with_catalog": 464,
+  "unique_catalogs": 460,
+  "duplicate_keys": 3,
+  "notes": "Front/Back photos are embedded in the Numbers file (~1850 JPEGs) but not exposed as cell values via numbers-parser; keep Numbers file for visual reference."
+}
